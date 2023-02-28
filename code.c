@@ -198,7 +198,7 @@ int main() {
     
     //simPi(1000);
     //simPi(1000000);
-    //simPi(10000000);
+    //simPi(1000000000);
 
     //meanPI(40, 10000000);
     
@@ -208,5 +208,7 @@ int main() {
     scanf("%d", &nbExp);
     getConfidenceRadius(nbExp, 1000000000);
     */
+
+    getConfidenceRadius(40, 1000000000);
     return 0;
 }
