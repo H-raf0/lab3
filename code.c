@@ -7,7 +7,6 @@
 #include "mt19937ar.h"
 
 
-/*misa7a dyak da2ira 3la dyal moraba3 = pi/4 hadak chi 3lach kn7ato no9at wst da2ira wo bra dyalha bach nsimiliw lmisa7a*/
 /*
 |------------------------------------------------------------------------------|
 |simPi                                                                         |
@@ -47,7 +46,7 @@ double simPi(int nbPoints) {
         
     }
     PI = 4.0 * inCircle / nbPoints;  // estimated value of PI
-    printf("computing complited\nPi estimate: %lf\n", PI);
+    printf("computing complited\nPi estimate: %.20f\n", PI);
     return PI;
 }
 
@@ -57,9 +56,21 @@ typedef struct Returnvalues {
     double* arrayPi;  // array containing estimated values of Pi
 }returnPi;
 
+/*
+|------------------------------------------------------------------------------|
+|meanPI                                                                        |
+|use : find the mean of PI based on the values of PI found after               |
+|       multiple simulations.                                                  |
+|                                                                              |
+|input : nbExpr, number of experiments.                                        |
+|        nbPoints, number of points.                                           |
+|output : sturture containing the mean PI and all the estimated values of      |
+|         PI created.                                                          |
+|------------------------------------------------------------------------------|
+*/
+returnPi meanPI(int nbExpr, int nbPoints) {
 
-returnPi meanPI(int nbExpr, int nbPoints) { //nb of experiments
-
+    // declaration
     returnPi dataPi;
     double meanPi = 0.0;
     double *arrayEstimation = (double*) malloc(nbExpr * sizeof(double));
@@ -71,6 +82,7 @@ returnPi meanPI(int nbExpr, int nbPoints) { //nb of experiments
         exit(1);
     }
 
+    // create multiple simulatioon and store them in the array "arrayEstimation", also calculating the sum of thoses values of PI in meanPi
     for (int i = 0; i < nbExpr; i++) {
 
         printf("\nExperiment number %d / %d\n", i + 1, nbExpr);
@@ -78,8 +90,10 @@ returnPi meanPI(int nbExpr, int nbPoints) { //nb of experiments
         meanPi += arrayEstimation[i];
     }
 
-    meanPi /= nbExpr;
+    // divising meanPi by number of experiments to get the mean value of PI
+    meanPi /= nbExpr; 
 
+    // printing results
     printf("\n\n    Experiments complited successfully\nthe mean PI is        : %.20f\n"
                                                        "the real PI is        : %.20f\n"
                                                        "the absolute error is : %.20f\n"
@@ -89,35 +103,48 @@ returnPi meanPI(int nbExpr, int nbPoints) { //nb of experiments
                                                        fabs(meanPi - M_PI),
                                                        fabs(meanPi - M_PI) / M_PI);
     
+    // storing variables for the return
     dataPi.meanPi = meanPi;
     dataPi.arrayPi = arrayEstimation;
     return dataPi;
-    //free(arrayEstimation);
 }
 
-
+/*
+|------------------------------------------------------------------------------|
+|getConfidenceRadius                                                           |
+|use : calculate the confidence radius and the confidence interval.            |
+|                                                                              |
+|input : nbExpr, number of experiments.                                        |
+|        nbPoints, number of points.                                           |
+|------------------------------------------------------------------------------|
+*/
 void getConfidenceRadius(int nbExp, int nbPoints) {
 
-    returnPi dataPi = meanPI(nbExp, nbPoints);
-    double variance = 0.0, meanPi, tValue, R;
+    // declaration
+    double stdDev = 0.0, meanPi, tValue, R;
     double* arrayEstimation;
     char lineData[14];
     int lineNb = 0, mult = 0, df = nbExp - 1, lineId;
     FILE* file;
 
+    // creation a simulation and getting its meanPi and an array with all PI value estimated 
+    returnPi dataPi = meanPI(nbExp, nbPoints);
+
+    // if df is between 3à and 120 where values start jumping by 10 we round df to the closest number and change the value of mult
     if (df > 30 && df <= 120) {
 
         mult = 1;
         df = round(df / 10.0) * 10;
     }
 
+    // if df is less then 120 -biggest value of df in the table we have in a file before it becomes considered as infinite- we get the line ID of the t value we need
     if (df <= 120) {
         lineId = df * (1 - mult) + mult * (30 + ((df - 30) / 10));
     }
-    else {
+    else { // we get the t value of inf which exist in the last line (line 40)
         lineId = 40;
     }
-    /*
+
     // Open the file for reading
     file = fopen("t-table.txt", "r");
 
@@ -125,18 +152,8 @@ void getConfidenceRadius(int nbExp, int nbPoints) {
         perror("Error: Unable to open the file t-table\n");
         exit(1);
     }
-    */
-    errno_t err;
-
-    // Open for read
-    err = fopen_s(&file, "t-table.txt", "r");
-
-    if (err){
-
-        perror("Error: Unable to open the file t-table\n");
-        exit(1);
-    }
-
+    
+    //reading line by line the file until we get to the line we want then extracting the t value from it and then breaking the loop
     while (fgets(lineData, sizeof(lineData), file)) {
 
         lineNb++;
@@ -148,23 +165,28 @@ void getConfidenceRadius(int nbExp, int nbPoints) {
     }
 
     
-
+    // simplify the writing of the variables
     meanPi = dataPi.meanPi;
     arrayEstimation = dataPi.arrayPi;
 
+    //calculating the value of the stdDev
     for (int i = 0; i < nbExp; i++) {
 
-        variance += pow((arrayEstimation[i] - meanPi), 2);
+        stdDev += pow((arrayEstimation[i] - meanPi), 2);
     }
 
-    variance /= nbExp - 1;
+    stdDev /= nbExp - 1;
 
-    R = tValue * sqrt(variance / nbExp);
+    //calculating the value of the confidence radius
+    R = tValue * sqrt(stdDev / nbExp);
 
-    printf("the confidence radius is : %.20f\nthe confidence intervals at 99%% is : [%.20f, %.20f]\n", R, meanPi - R, meanPi + R);
+    printf("the confidence radius is : %.20f\nthe confidence interval at 99%% is : [%.20f, %.20f]\n", R, meanPi - R, meanPi + R);
 
+    //freeing memory collocated
     free(dataPi.arrayPi);
-    // Close the file
+    free(arrayEstimation);
+
+    // Closing the file
     fclose(file);
 }
 
@@ -179,11 +201,12 @@ int main() {
     //simPi(10000000);
 
     //meanPI(40, 10000000);
-
-    /*int nbExp;
+    
+    /*
+    int nbExp;
     printf("what is the number of experiments? :");
-    scanf("%d", &nbExp);*/
-    getConfidenceRadius(40, 10000000);
-
+    scanf("%d", &nbExp);
+    getConfidenceRadius(nbExp, 1000000000);
+    */
     return 0;
 }
